@@ -17,7 +17,6 @@ end
 
 % Particle weight array (initialise to equal values)
 particleWeight = zeros(1,num) + 1/num;
-sum(particleWeight)
 
 %% Localisation code
 maxNumOfIterations = 30;
