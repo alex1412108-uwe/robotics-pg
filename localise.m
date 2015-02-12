@@ -21,10 +21,10 @@ n = 0;
 converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
-    botScan = botSim.ultraScan(); %get a scan from the real robot.
+    [distance crossingpoint] = botSim.ultraScan(); %get a scan from the real robot.
     
     %% Write code for updating your particles scans
-   
+
     
     %% Write code for scoring your particles    
     
