@@ -15,8 +15,19 @@ for i = 1:num
     particles(i).randomPose(0); %spawn the particles in random locations
 end
 
+% Set scan parameters
+numScans = 10;
+botSim.generateScanConfig(numScans);
+for i=1:num
+    particles(i).generateScanConfig(numScans);
+end
+
 % Particle weight array (initialise to equal values)
 particleWeight = zeros(1,num) + 1/num;
+sensorStdDev = 10;
+P_zr = zeros(num,1);
+
+newParticles = particles;
 
 %% Localisation code
 maxNumOfIterations = 30;
@@ -32,6 +43,26 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     % Predict probability for particle in current location
     % - P(measurement|location)
     % - - Based on estimated ultrasound error
+    dampingFactor = 0.0000000000001;
+    for i=1:num
+        % particle measurement
+        measurement = particles(i).ultraScan();
+        turnAmount = 1;
+        % rotate array and find error
+        for j=1:length(botScan)
+            shifted = circshift(measurement,j);
+            scanError = (mean(abs(botScan-shifted)))^2;
+            exponential = exp( (-1*scanError) / (2*sensorStdDev^2) );
+            P_zr_temp = exponential/sqrt(2*pi*sensorStdDev^2);
+            if P_zr_temp>P_zr(i)
+                P_zr(i)=P_zr_temp+dampingFactor;
+                turnAmount = j;
+            end
+%             particles(i).turn((turnAmount-1)*2*pi / length(botScan));
+        end
+    end
+    
+    
     
     
     %% Write code for scoring your particles 
@@ -46,6 +77,12 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     %                  and P(L)+P(~L)=1
     %
     % - NB: If using probabilities as weight, normalise to sum to 1
+    normFactor = sum(P_zr);
+    
+    for i=1:num
+        particleWeight(i) = P_zr(i)/normFactor;
+    end
+    
     
     
     %% Write code for resapling your particles
@@ -54,22 +91,62 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     % - Any particles outside walls should be eliminated
     % - Set all particle weights equal
     
+    particleCounter = 1;
+    for i=1:num
+        numSamples = round(particleWeight(i)*300);
+        
+        if numSamples>0 && particleCounter<=300
+            for j=1:numSamples
+                newParticles(particleCounter) = particles(i);
+                particleCounter=particleCounter+1;
+            end
+        end
+    end
+    
+    
+    
+    
+    % Update particles location for plotting and next iteration
+    particles=newParticles;
+    
+    % reset weights
     particleWeight(1,:) = 1/num;
+    P_zr = zeros(num,1);
     
     %% Write code to check for convergence 
     % Check how close particles are to each other
     % - if within tolerance, set convergence=1
+   
+
+    % Number of particles near to actual thing
+    radius = 10;
+    botLocation = botSim.getBotPos();
+    numNearby = 0;
+    for i=1:num
+        particleLocation = particles(i).getBotPos();
+        locationErrorVec = botLocation - particleLocation;
+        locationError = sqrt(sum(locationErrorVec.^2));
+        if locationError<radius
+            numNearby=  numNearby+1;
+        end
+    end
+    disp(numNearby);
     
     
     %% Write code to decide how to move next
     % here they just turn in cicles as an example
     turn = 0.5;
     move = 2;
+    
+    turnNoise = normrnd(0,0.1,num,1)./(2*pi);
+    moveNoise = normrnd(0,0.1,num,1);
+   
+
     botSim.turn(turn); %turn the real robot.  
     botSim.move(move); %move the real robot. These movements are recorded for marking 
     for i =1:num %for all the particles. 
-        particles(i).turn(turn); %turn the particle in the same way as the real robot
-        particles(i).move(move); %move the particle in the same way as the real robot
+        particles(i).turn(turn+turnNoise(i)); %turn the particle in the same way as the real robot
+        particles(i).move(move+moveNoise(i)); %move the particle in the same way as the real robot
     end
     
     %% Drawing
