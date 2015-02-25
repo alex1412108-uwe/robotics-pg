@@ -24,7 +24,7 @@ end
 
 % Particle weight array (initialise to equal values)
 particleWeight = zeros(1,num) + 1/num;
-sensorStdDev = 10;
+sensorStdDev = 3;
 P_zr = zeros(num,1);
 
 newParticles = particles;
@@ -43,7 +43,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     % Predict probability for particle in current location
     % - P(measurement|location)
     % - - Based on estimated ultrasound error
-    dampingFactor = 0.0000000000001;
+    dampingFactor = 0.00001;
     for i=1:num
         % particle measurement
         measurement = particles(i).ultraScan();
@@ -93,15 +93,19 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     particleCounter = 1;
     for i=1:num
-        numSamples = round(particleWeight(i)*300);
+        numSamples = round(particleWeight(i).*300);
         
-        if numSamples>0 && particleCounter<=300
+        if numSamples>0 && particleCounter<=(300-numSamples)
+            pos = particles(i).getBotPos();
+            ang = particles(i).getBotAng();
             for j=1:numSamples
-                newParticles(particleCounter) = particles(i);
+                newParticles(particleCounter).setBotPos(pos); 
+                newParticles(particleCounter).setBotAng(ang); 
                 particleCounter=particleCounter+1;
             end
         end
     end
+%     disp(particleCounter);
     
     
     
@@ -139,14 +143,13 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     move = 2;
     
     turnNoise = normrnd(0,0.1,num,1)./(2*pi);
-    moveNoise = normrnd(0,0.1,num,1);
+    moveNoise = normrnd(0,5,num,1);
    
-
     botSim.turn(turn); %turn the real robot.  
     botSim.move(move); %move the real robot. These movements are recorded for marking 
     for i =1:num %for all the particles. 
-        particles(i).turn(turn+turnNoise(i)); %turn the particle in the same way as the real robot
-        particles(i).move(move+moveNoise(i)); %move the particle in the same way as the real robot
+        particles(i).turn(turn+randn(1,1)/pi);%turnNoise(i)); %turn the particle in the same way as the real robot
+        particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
     end
     
     %% Drawing
