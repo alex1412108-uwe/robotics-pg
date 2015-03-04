@@ -1,4 +1,4 @@
-function [botSim] = localise(botSim,map,target)
+ function [botSim] = localise(botSim,map,target)
 %This function returns botSim, and accepts, botSim, a map and a target.
 %LOCALISE Template localisation function
 
@@ -30,7 +30,7 @@ P_zr = zeros(num,1);
 newParticles = particles;
 
 %% Localisation code
-maxNumOfIterations = 30;
+maxNumOfIterations = 10;
 n = 0;
 converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
@@ -155,6 +155,34 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         particles(i).turn(turn+randn(1,1)/pi);%turnNoise(i)); %turn the particle in the same way as the real robot
         particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
     end
+    Pos = zeros(num,2);
+    for i = 1:num %find bot pos from readings
+        Pos(i,:) = particles(i).getBotPos();
+        Ang(i,:) = particles(i).getBotAng();
+    end
+    
+    MPos = sum(Pos,1)/num
+    MAng = sum(Ang,1)/num
+    
+    for i = 1:num
+        PosX(i,1) = [Pos(i,1)];
+        PosY(i,1) = [Pos(i,2)];
+%         PosNow{i} = [Pos(i,1),Pos(i,2)];
+    end
+    for i = 1:num
+        DivX(i) = (PosX(i) - MPos(1)).^2;
+        DivY(i) = (PosY(i) - MPos(2)).^2;
+    end
+    
+    SDx = sqrt((1/num)*sum(DivX));
+    SDy = sqrt((1/num)*sum(DivY));
+        
+    A = 1;
+    for i = 1:num
+        dr(i,1) = A * exp(-((DivX(i)/(2*SDx.^2)) + (DivY(i)/(2*SDy.^2))));
+    end
+       
+    r = 2*SDx
     
     %% Drawing
     %only draw if you are in debug mode or it will be slow during marking
@@ -164,6 +192,9 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
         for i =1:num
             particles(i).drawBot(3); %draw particle with line length 3 and default color
+        end
+        for i = 0:pi/100:2*pi
+            plot((r*cos(i) + MPos(1,1)),(r*sin(i) + MPos(1,2)),'g') %Plots a representation of the uncertanty with a central probability of location
         end
         drawnow;
     end
