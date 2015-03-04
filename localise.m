@@ -43,7 +43,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     % Predict probability for particle in current location
     % - P(measurement|location)
     % - - Based on estimated ultrasound error
-    dampingFactor = 0.0000001;
+    dampingFactor = 0.001;
     for i=1:num
         % particle measurement
         measurement = particles(i).ultraScan();
@@ -58,7 +58,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                 P_zr(i)=P_zr_temp+dampingFactor;
                 turnAmount = j;
             end
-%             particles(i).turn((turnAmount-1)*2*pi / length(botScan));
+%             particles(i).turn((turnAmount-1)*2*pi / length(botScan) - pi/2);
         end
     end
     
@@ -105,6 +105,10 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             end
         end
     end
+    
+    for i=particleCounter:300
+        newParticles(particleCounter).randomPose(0);
+    end
 %     disp(particleCounter);
     
     
@@ -139,16 +143,16 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     %% Write code to decide how to move next
     % here they just turn in cicles as an example
-    turn = 0.5;
-    move = 2;
+    turn = randn(1,1)*2*pi;
+    move = 3+3*randn(1,1);
     
     turnNoise = normrnd(0,0.1,num,1)./(2*pi);
-    moveNoise = normrnd(0,5,num,1);
+    moveNoise = normrnd(0,10,num,1);
    
     botSim.turn(turn); %turn the real robot.  
     botSim.move(move); %move the real robot. These movements are recorded for marking 
     for i =1:num %for all the particles. 
-        particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
+        particles(i).turn(turn+randn(1,1)/pi);%turnNoise(i)); %turn the particle in the same way as the real robot
         particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
     end
     
