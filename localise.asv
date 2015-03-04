@@ -58,7 +58,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                 P_zr(i)=P_zr_temp+dampingFactor;
                 turnAmount = j;
             end
-%             particles(i).turn((turnAmount-1)*2*pi / length(botScan));
+%              particles(i).turn((turnAmount-1)*2*pi / length(botScan));
         end
     end
     
@@ -80,17 +80,18 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     normFactor = sum(P_zr);
     
     MaxP = max(P_zr);
-    if MaxP < 0.1
+    if MaxP < 0.05
         for i = 1:num
             particles(i).randomPose(0);
         end
+        particleWeight = zeros(1,num) + 1/num;
     else
         for i=1:num
             particleWeight(i) = P_zr(i)/normFactor;
         end
     end
         
-    
+    particleWeight1 = particleWeight;
     
     %% Write code for resapling your particles
     % Any particle with weight lower than threshold deleted
@@ -138,25 +139,30 @@ Pos = zeros(num,2);
     MPos = sum(Pos,1)/num; % Mean position of the particles.
     MAng = sum(Ang,1)/num; % Mean angle of the particles. 
     
-
+    for i = 1:num
+        PosP(i,:) = Pos(i,:) .* particleWeight1(i);
+    end
+    
+    MPosP = sum(PosP,1);
+    
     %calculation of the postion uncertainty
     for i = 1:num
         PosX(i,1) = [Pos(i,1)];
         PosY(i,1) = [Pos(i,2)];
-%         PosNow{i} = [Pos(i,1),Pos(i,2)];
-    end
-    for i = 1:num
-        DivX(i) = (PosX(i) - MPos(1)).^2;
-        DivY(i) = (PosY(i) - MPos(2)).^2;
     end
     
+    for i = 1:num
+        DivX(i) = (PosX(i) - MPosP(1)).^2;
+        DivY(i) = (PosY(i) - MPosP(2)).^2;
+    end
+
     SDx = sqrt((1/num)*sum(DivX));
     SDy = sqrt((1/num)*sum(DivY));
         
-    A = 1;
-    for i = 1:num
-        dr(i,1) = A * exp(-((DivX(i)/(2*SDx.^2)) + (DivY(i)/(2*SDy.^2))));
-    end
+%     A = 1;
+%     for i = 1:num
+%         dr(i,1) = A * exp(-((DivX(i)/(2*SDx.^2)) + (DivY(i)/(2*SDy.^2))));
+%     end
        
     %radius of uncertainty based on 2 standard deviations. 
     if SDx > SDy
@@ -168,6 +174,15 @@ Pos = zeros(num,2);
     
     %uncertanty in angle 
     
+    for i = 1:num
+        AngP(i) = Ang(i) .* particleWeight1(i);
+    end
+    
+    MAngP = mod(sum(AngP),2*pi);
+    if MAngP > pi
+        MAngP=MAngP-2*pi;
+    end
+    MAngP
     % Number of particles near to actual thing
 %     radius = 10;
 %     botLocation = botSim.getBotPos();
@@ -188,14 +203,14 @@ Pos = zeros(num,2);
     turn = 0.5;
     move = 2;
     
-    turnNoise = normrnd(0,0.1,num,1)./(2*pi);
-    moveNoise = normrnd(0,5,num,1);
+    turnNoise = normrnd(0,0.5,num,1)./(2*pi);
+    moveNoise = normrnd(0,1,num,1);
    
     botSim.turn(turn); %turn the real robot.  
     botSim.move(move); %move the real robot. These movements are recorded for marking 
     for i =1:num %for all the particles. 
-        particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
-        particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
+        particles(i).turn(turn+turnNoise(i));%turnNoise(i)); %turn the particle in the same way as the real robot
+        particles(i).move(move+moveNoise(i));%moveNoise(i)); %move the particle in the same way as the real robot
     end
     
     %% Drawing
@@ -208,8 +223,10 @@ Pos = zeros(num,2);
             particles(i).drawBot(3); %draw particle with line length 3 and default color
         end
         for i = 0:pi/100:2*pi
-            plot((r*cos(i) + MPos(1,1)),(r*sin(i) + MPos(1,2)),'g') %Plots a representation of the uncertanty with a central probability of location
+            plot((r*cos(i) + MPosP(1,1)),(r*sin(i) + MPosP(1,2)),'g') %Plots a representation of the uncertanty with a central probability of location
         end
+        AngEnd = [MPosP(1)+10*cos(MAngP),MPosP(2)+10*sin(MAngP)];
+        plot([MPosP(1),AngEnd(1)],[MPosP(2),AngEnd(2)],'r');
         drawnow;
     end
 end
