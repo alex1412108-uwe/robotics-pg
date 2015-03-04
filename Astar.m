@@ -12,7 +12,7 @@ maxY = max(map(:,2));
 mapAstar = -1*(ones(maxX, maxY)); 
 
 % find the nodes inside of the polygon
-nodes = polygrid(map(:,1), map(:,2), ppa); 
+nodes = polygrid(map(:,1)+1, map(:,2)+1, ppa); 
 
 % change the value of any nodes inside the map to 2 (potential node)
 for i = 1:length(nodes)
@@ -143,5 +143,6 @@ if ((xVal == xTarget) && (yVal == yTarget))
     
         i = i+1; 
     end 
+    optimalPath(:,:) = optimalPath(:,:) - 1; 
 end 
 
