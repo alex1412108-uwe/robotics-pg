@@ -29,6 +29,8 @@ P_zr = zeros(num,1);
 
 newParticles = particles;
 
+pathPoint = 1;
+
 %% Localisation code
 maxNumOfIterations = 10;
 n = 0;
@@ -124,45 +126,15 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     %% Write code to check for convergence 
     % Check how close particles are to each other
     % - if within tolerance, set convergence=1
-   
-
-    % Number of particles near to actual thing
-%     radius = 10;
-%     botLocation = botSim.getBotPos();
-%     numNearby = 0;
-%     for i=1:num
-%         particleLocation = particles(i).getBotPos();
-%         locationErrorVec = botLocation - particleLocation;
-%         locationError = sqrt(sum(locationErrorVec.^2));
-%         if locationError<radius
-%             numNearby=  numNearby+1;
-%         end
-%     end
-%     disp(numNearby);
     
-    
-    %% Write code to decide how to move next
-    % here they just turn in cicles as an example
-    turn = randn(1,1)*2*pi;
-    move = 3+3*randn(1,1);
-    
-    turnNoise = normrnd(0,0.1,num,1)./(2*pi);
-    moveNoise = normrnd(0,10,num,1);
-   
-    botSim.turn(turn); %turn the real robot.  
-    botSim.move(move); %move the real robot. These movements are recorded for marking 
-    for i =1:num %for all the particles. 
-        particles(i).turn(turn+randn(1,1)/pi);%turnNoise(i)); %turn the particle in the same way as the real robot
-        particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
-    end
     Pos = zeros(num,2);
     for i = 1:num %find bot pos from readings
         Pos(i,:) = particles(i).getBotPos();
         Ang(i,:) = particles(i).getBotAng();
     end
     
-    MPos = sum(Pos,1)/num
-    MAng = sum(Ang,1)/num
+    MPos = sum(Pos,1)/num;
+    MAng = sum(Ang,1)/num;
     
     for i = 1:num
         PosX(i,1) = [Pos(i,1)];
@@ -182,7 +154,67 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         dr(i,1) = A * exp(-((DivX(i)/(2*SDx.^2)) + (DivY(i)/(2*SDy.^2))));
     end
        
-    r = 2*SDx
+    r = 2*SDx;
+   
+
+    % Number of particles near to actual thing
+%     radius = 10;
+%     botLocation = botSim.getBotPos();
+%     numNearby = 0;
+%     for i=1:num
+%         particleLocation = particles(i).getBotPos();
+%         locationErrorVec = botLocation - particleLocation;
+%         locationError = sqrt(sum(locationErrorVec.^2));
+%         if locationError<radius
+%             numNearby=  numNearby+1;
+%         end
+%     end
+%     disp(numNearby);
+    
+    
+    %% Write code to decide how to move next
+    % here they just turn in cicles as an example
+    turn=0;
+    if (n<3)
+        %turn = randn(1,1)*2*pi;
+        move = 3+3*randn(1,1);
+    elseif mod(n,4)==0
+        disp('Planning path...');
+        optimalPath = Astar(modifiedMap, round(target), round(MPos));
+        pathPoint = 1;
+    elseif n>4
+        if pathPoint>length(optimalPath)
+            turn=0;
+            move = 3;
+        else
+            Ang = atan2(optimalPath(pathPoint,2)-MPos(2),optimalPath(pathPoint,1)-MPos(1));
+            turn = -1*Ang
+            move = distance(MPos,optimalPath(pathPoint,:));
+        end
+        
+        if move>10
+            move = 10;
+        end
+
+        if pathPoint==length(optimalPath) || distance(MPos,target)<2
+            converged=1;
+        elseif pathPoint<length(optimalPath)
+            pathPoint = pathPoint+1;
+        end
+    end
+    
+    
+    
+    turnNoise = normrnd(0,0.1,num,1)./(2*pi);
+    moveNoise = normrnd(0,10,num,1);
+   
+    botSim.turn(turn); %turn the real robot.  
+    botSim.move(move); %move the real robot. These movements are recorded for marking 
+    for i =1:num %for all the particles. 
+        particles(i).turn(turn+randn(1,1)/pi);%turnNoise(i)); %turn the particle in the same way as the real robot
+        particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
+    end
+
     
     %% Drawing
     %only draw if you are in debug mode or it will be slow during marking
@@ -191,11 +223,21 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         botSim.drawMap(); %drawMap() turns hold back on again, so you can draw the bots
         botSim.drawBot(30,'g'); %draw robot with line length 30 and green
         for i =1:num
-            particles(i).drawBot(3); %draw particle with line length 3 and default color
+            particles(i).drawBot(3,'b'); %draw particle with line length 3 and default color
         end
         for i = 0:pi/100:2*pi
             plot((r*cos(i) + MPos(1,1)),(r*sin(i) + MPos(1,2)),'g') %Plots a representation of the uncertanty with a central probability of location
         end
+        
+        % Plot path
+        if n>=4
+            disp('plotting path');
+            plot(optimalPath(:,1),optimalPath(:,2),'r');
+            hold on; 
+        end
+        
+        plot(target(1),target(2),'r*');
+        
         drawnow;
     end
 end

@@ -15,8 +15,9 @@ mapAstar = -1*(ones(maxX, maxY));
 nodes = polygrid(map(:,1), map(:,2), ppa); 
 
 % change the value of any nodes inside the map to 2 (potential node)
+% --- NB -> Need to subtract 1 from optimal path answers
 for i = 1:length(nodes)
-    mapAstar(nodes(i,1), nodes(i,2)) = 2; 
+    mapAstar(nodes(i,1)+1, nodes(i,2)+1) = 2; 
 end 
 
 % create open list
