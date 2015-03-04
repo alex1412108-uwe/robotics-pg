@@ -144,5 +144,6 @@ if ((xVal == xTarget) && (yVal == yTarget))
         i = i+1; 
     end 
     optimalPath(:,:) = optimalPath(:,:) - 1; 
+    optimalPath(:,:) = flipud(optimalPath(:,:)); 
 end 
 

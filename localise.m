@@ -16,7 +16,7 @@ for i = 1:num
 end
 
 % Set scan parameters
-numScans = 15;
+numScans = 6;
 botSim.generateScanConfig(numScans);
 for i=1:num
     particles(i).generateScanConfig(numScans);
@@ -32,6 +32,7 @@ newParticles = particles;
 %% Localisation code
 maxNumOfIterations = 30;
 n = 0;
+pathPoint = 1; 
 converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
@@ -57,9 +58,9 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             if P_zr_temp>P_zr(i)
                 P_zr(i)=P_zr_temp+dampingFactor;
                 turnAmount = j;
-            end
-             particles(i).turn((turnAmount-1)*2*pi / length(botScan));
+            end     
         end
+        particles(i).turn(-1*(turnAmount-1)*2*pi / length(botScan));
     end
     
     
@@ -80,7 +81,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     normFactor = sum(P_zr);
     
     MaxP = max(P_zr);
-    if MaxP < 0.05
+    if MaxP < 0.001
         for i = 1:num
             particles(i).randomPose(0);
         end
@@ -200,40 +201,78 @@ Pos = zeros(num,2);
     
     %% Write code to decide how to move next
     % here they just turn in cicles as an example
-    if (n<4)
-    turn = 0.5;
-    move = 2;
-    
-    turnNoise = normrnd(0,0.1,num,1)./(2*pi);
-    moveNoise = normrnd(0,5,num,1);
-   
-    botSim.turn(turn); %turn the real robot.  
-    botSim.move(move); %move the real robot. These movements are recorded for marking 
-    
-    for i =1:num %for all the particles. 
-        particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
-        particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
-    end  
-    elseif n == 4
+%     SD
+%     if (n<4) || (1.5*SD) > 5
+%         turn = 0.5;
+%         move = 2;
+% 
+%         turnNoise = normrnd(0,0.1,num,1)./(2*pi);
+%         moveNoise = normrnd(0,5,num,1);
+% 
+%         botSim.turn(turn); %turn the real robot.  
+%         botSim.move(move); %move the real robot. These movements are recorded for marking 
+% 
+%         for i =1:num %for all the particles. 
+%             particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
+%             particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
+%         end  
+%     elseif n == 4
+%         disp('planning...')
+%         optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
+%         disp('DONE!!!')
+%          MPosP
+%          optimalPath(pathPoint)
+%          
+%     elseif (n >= 4) && (distance(MPosP, target) > 2) && (1.5*SD) < 5
+%         pathAng = atan2(optimalPath(pathPoint, 2), optimalPath(pathPoint, 1)); 
+%         turn = pathAng - MAngP;
+%         
+%         pathPoint = pathPoint + 1; 
+%         MPos
+%         optimalPath(pathPoint,:)
+%         move = distance(MPosP, optimalPath(pathPoint,:))
+%         
+%         turnNoise = normrnd(0,0.1,num,1)./(2*pi);
+%         moveNoise = normrnd(0,5,num,1);
+%         
+%         botSim.turn(turn); %turn the real robot.
+%         botSim.move(move); %move the real robot. These movements are recorded for marking
+%         for i =1:num %for all the particles.
+%             particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
+%             particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
+%         end 
+%     end 
+
+        disp('planning...')
         optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
-         
-    elseif (n >= 4) && (distance(MPosP, target) < 2) 
-        pathAng = atan2(optimalPath(pathPoint, 2), optimalPath(pathPoint, 1)); 
-        turn = pathAng - MAngP;
-        
-        pathPoint = pathPoint + 3; 
-        move = distance(MPosP, optimalPath(pathPoint));
+        sOptPath = size(optimalPath);
+        disp('DONE!!!')
+        SD
+        if sOptPath(1)>1 && SD<8
+            pathAng = atan2(optimalPath(2, 2)-MPosP(2), optimalPath(2, 1)-MPosP(1)); 
+            turn = pathAng + MAngP+pi
+            move = distance(MPosP, optimalPath(2,:));
+
+
+        elseif SD<2.5
+            converged = 1;
+            disp('WOOHOOO, WEVE ARRIVED');
+        else
+            % Do nothing
+            turn=0.5;
+            move = 2;
+        end
         
         turnNoise = normrnd(0,0.1,num,1)./(2*pi);
         moveNoise = normrnd(0,5,num,1);
-        
-        botSim.turn(turn); %turn the real robot.
-        botSim.move(move); %move the real robot. These movements are recorded for marking
-        for i =1:num %for all the particles.
+
+        botSim.turn(turn); %turn the real robot.  
+        botSim.move(move); %move the real robot. These movements are recorded for marking 
+
+        for i =1:num %for all the particles. 
             particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
             particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
-        end 
-    end 
+        end
         
     %% Drawing
     %only draw if you are in debug mode or it will be slow during marking

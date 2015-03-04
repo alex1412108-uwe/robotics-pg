@@ -32,6 +32,7 @@ newParticles = particles;
 %% Localisation code
 maxNumOfIterations = 30;
 n = 0;
+pathPoint = 1; 
 converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
@@ -200,29 +201,33 @@ Pos = zeros(num,2);
     
     %% Write code to decide how to move next
     % here they just turn in cicles as an example
-    if (n<4)
-    turn = 0.5;
-    move = 2;
-    
-    turnNoise = normrnd(0,0.1,num,1)./(2*pi);
-    moveNoise = normrnd(0,5,num,1);
-   
-    botSim.turn(turn); %turn the real robot.  
-    botSim.move(move); %move the real robot. These movements are recorded for marking 
-    
-    for i =1:num %for all the particles. 
-        particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
-        particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
-    end  
+    if (n<4) || 
+        turn = 0.5;
+        move = 2;
+
+        turnNoise = normrnd(0,0.1,num,1)./(2*pi);
+        moveNoise = normrnd(0,5,num,1);
+
+        botSim.turn(turn); %turn the real robot.  
+        botSim.move(move); %move the real robot. These movements are recorded for marking 
+
+        for i =1:num %for all the particles. 
+            particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
+            particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
+        end  
     elseif n == 4
+        disp('planning...')
         optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
+        disp('DONE!!!')
+%         MPosP
+%         optimalPath
          
-    elseif (n >= 4) && (distance(MPosP, target) < 2) 
+    elseif (n >= 4) && (distance(MPosP, target) > 2) && SD ~= 2 
         pathAng = atan2(optimalPath(pathPoint, 2), optimalPath(pathPoint, 1)); 
         turn = pathAng - MAngP;
         
-        pathPoint = pathPoint + 3; 
-        move = distance(MPosP, optimalPath(pathPoint));
+        pathPoint = pathPoint + 1; 
+        move = distance(MPosP, optimalPath(pathPoint,:))
         
         turnNoise = normrnd(0,0.1,num,1)./(2*pi);
         moveNoise = normrnd(0,5,num,1);
@@ -249,12 +254,12 @@ Pos = zeros(num,2);
         end
         AngEnd = [MPosP(1)+10*cos(MAngP),MPosP(2)+10*sin(MAngP)];
         plot([MPosP(1),AngEnd(1)],[MPosP(2),AngEnd(2)],'r');
-        drawnow;
         if n>=4
             plot(optimalPath(:,1), optimalPath(:,2));
             plot(target(1), target(2), '*');
             plot(MPosP(1), MPosP(2), '*');
         end
+        drawnow;
     end
 
 end
