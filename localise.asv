@@ -30,7 +30,7 @@ P_zr = zeros(num,1);
 newParticles = particles;
 
 %% Localisation code
-maxNumOfIterations = 10;
+maxNumOfIterations = 30;
 n = 0;
 converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
@@ -79,10 +79,17 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     % - NB: If using probabilities as weight, normalise to sum to 1
     normFactor = sum(P_zr);
     
-    for i=1:num
-        particleWeight(i) = P_zr(i)/normFactor;
+    MaxP = max(P_zr);
+    if MaxP < 0.1
+        for i = 1:num
+            particles(i).randomPose(0);
+        end
+    else
+        for i=1:num
+            particleWeight(i) = P_zr(i)/normFactor;
+        end
     end
-    
+        
     
     
     %% Write code for resapling your particles
@@ -121,7 +128,46 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     % Check how close particles are to each other
     % - if within tolerance, set convergence=1
    
+Pos = zeros(num,2);
+    for i = 1:num %find bot pos from readings
+        Pos(i,:) = particles(i).getBotPos();
+        Ang(i,:) = particles(i).getBotAng();
+    end
+    
+    % Mean position based on the particle locations 
+    MPos = sum(Pos,1)/num; % Mean position of the particles.
+    MAng = sum(Ang,1)/num; % Mean angle of the particles. 
+    
 
+    %calculation of the postion uncertainty
+    for i = 1:num
+        PosX(i,1) = [Pos(i,1)];
+        PosY(i,1) = [Pos(i,2)];
+%         PosNow{i} = [Pos(i,1),Pos(i,2)];
+    end
+    for i = 1:num
+        DivX(i) = (PosX(i) - MPos(1)).^2;
+        DivY(i) = (PosY(i) - MPos(2)).^2;
+    end
+    
+    SDx = sqrt((1/num)*sum(DivX));
+    SDy = sqrt((1/num)*sum(DivY));
+        
+    A = 1;
+    for i = 1:num
+        dr(i,1) = A * exp(-((DivX(i)/(2*SDx.^2)) + (DivY(i)/(2*SDy.^2))));
+    end
+       
+    %radius of uncertainty based on 2 standard deviations. 
+    if SDx > SDy
+        SD = SDx;
+    else 
+        SD = SDy;
+    end
+    r = 1.5*SD;
+    
+    %uncertanty in angle 
+    
     % Number of particles near to actual thing
 %     radius = 10;
 %     botLocation = botSim.getBotPos();
@@ -151,41 +197,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
         particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
     end
-    Pos = zeros(num,2);
-    for i = 1:num %find bot pos from readings
-        Pos(i,:) = particles(i).getBotPos();
-        Ang(i,:) = particles(i).getBotAng();
-    end
     
-    MPos = sum(Pos,1)/num
-    MAng = sum(Ang,1)/num
-    
-    for i = 1:num
-        PosX(i,1) = [Pos(i,1)];
-        PosY(i,1) = [Pos(i,2)];
-%         PosNow{i} = [Pos(i,1),Pos(i,2)];
-    end
-    for i = 1:num
-        DivX(i) = (PosX(i) - MPos(1)).^2;
-        DivY(i) = (PosY(i) - MPos(2)).^2;
-    end
-    for i = 1:num
-        SDx = sqrt((1/num)*sum(DivX));
-        SDy = sqrt((1/num)*sum(DivY));
-    end
-    A = 1;
-    dr(i,1) = A * exp(-((DivX/(2*SDx.^2)) + (DivY/(2*SDy.^2))));
-       
-    r = max(SDx,SDy)
-    
-%     FitX = fitdist(x_values,'Normal')
-%     FitY = fitdist(PosY,'Normal')
-
-%     Plot(PosX,FitX)
-% 
-%     for i = 1:num  
-%         Uncertanty(i) = (1/(StanDev*sqrt(2*pi)))*exp(-(((Pos(i),1) - MPos)^2)/(2*StanDev^2))
-%     end
     %% Drawing
     %only draw if you are in debug mode or it will be slow during marking
     if botSim.debug()
