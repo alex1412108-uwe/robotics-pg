@@ -16,7 +16,7 @@ for i = 1:num
 end
 
 % Set scan parameters
-numScans = 10;
+numScans = 6;
 botSim.generateScanConfig(numScans);
 for i=1:num
     particles(i).generateScanConfig(numScans);
@@ -32,8 +32,9 @@ newParticles = particles;
 pathPoint = 1;
 
 %% Localisation code
-maxNumOfIterations = 10;
+maxNumOfIterations = 30;
 n = 0;
+pathPoint = 1; 
 converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
@@ -59,9 +60,9 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             if P_zr_temp>P_zr(i)
                 P_zr(i)=P_zr_temp+dampingFactor;
                 turnAmount = j;
-            end
-%             particles(i).turn((turnAmount-1)*2*pi / length(botScan) - pi/2);
+            end     
         end
+        particles(i).turn(-1*(turnAmount-1)*2*pi / length(botScan));
     end
     
     
@@ -81,11 +82,19 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     % - NB: If using probabilities as weight, normalise to sum to 1
     normFactor = sum(P_zr);
     
-    for i=1:num
-        particleWeight(i) = P_zr(i)/normFactor;
+    MaxP = max(P_zr);
+    if MaxP < 0.001
+        for i = 1:num
+            particles(i).randomPose(0);
+        end
+        particleWeight = zeros(1,num) + 1/num;
+    else
+        for i=1:num
+            particleWeight(i) = P_zr(i)/normFactor;
+        end
     end
-    
-    
+        
+    particleWeight1 = particleWeight;
     
     %% Write code for resapling your particles
     % Any particle with weight lower than threshold deleted
@@ -156,7 +165,60 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
        
     r = 2*SDx;
    
+Pos = zeros(num,2);
+    for i = 1:num %find bot pos from readings
+        Pos(i,:) = particles(i).getBotPos();
+        Ang(i,:) = particles(i).getBotAng();
+    end
+    
+    % Mean position based on the particle locations 
+    MPos = sum(Pos,1)/num; % Mean position of the particles.
+    MAng = sum(Ang,1)/num; % Mean angle of the particles. 
+    
+    for i = 1:num
+        PosP(i,:) = Pos(i,:) .* particleWeight1(i);
+    end
+    
+    MPosP = sum(PosP,1);
+    
+    %calculation of the postion uncertainty
+    for i = 1:num
+        PosX(i,1) = [Pos(i,1)];
+        PosY(i,1) = [Pos(i,2)];
+    end
+    
+    for i = 1:num
+        DivX(i) = (PosX(i) - MPosP(1)).^2;
+        DivY(i) = (PosY(i) - MPosP(2)).^2;
+    end
 
+    SDx = sqrt((1/num)*sum(DivX));
+    SDy = sqrt((1/num)*sum(DivY));
+        
+%     A = 1;
+%     for i = 1:num
+%         dr(i,1) = A * exp(-((DivX(i)/(2*SDx.^2)) + (DivY(i)/(2*SDy.^2))));
+%     end
+       
+    %radius of uncertainty based on 2 standard deviations. 
+    if SDx > SDy
+        SD = SDx;
+    else 
+        SD = SDy;
+    end
+    r = 1.5*SD;
+    
+    %uncertanty in angle 
+    
+    for i = 1:num
+        AngP(i) = Ang(i) .* particleWeight1(i);
+    end
+    
+    MAngP = mod(sum(AngP),2*pi);
+    if MAngP > pi
+        MAngP=MAngP-2*pi;
+    end
+    %MAngP
     % Number of particles near to actual thing
 %     radius = 10;
 %     botLocation = botSim.getBotPos();
@@ -174,6 +236,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     %% Write code to decide how to move next
     % here they just turn in cicles as an example
+<<<<<<< HEAD
     turn=0;
     if (n<3)
         %turn = randn(1,1)*2*pi;
@@ -216,6 +279,81 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     end
 
     
+=======
+%     SD
+%     if (n<4) || (1.5*SD) > 5
+%         turn = 0.5;
+%         move = 2;
+% 
+%         turnNoise = normrnd(0,0.1,num,1)./(2*pi);
+%         moveNoise = normrnd(0,5,num,1);
+% 
+%         botSim.turn(turn); %turn the real robot.  
+%         botSim.move(move); %move the real robot. These movements are recorded for marking 
+% 
+%         for i =1:num %for all the particles. 
+%             particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
+%             particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
+%         end  
+%     elseif n == 4
+%         disp('planning...')
+%         optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
+%         disp('DONE!!!')
+%          MPosP
+%          optimalPath(pathPoint)
+%          
+%     elseif (n >= 4) && (distance(MPosP, target) > 2) && (1.5*SD) < 5
+%         pathAng = atan2(optimalPath(pathPoint, 2), optimalPath(pathPoint, 1)); 
+%         turn = pathAng - MAngP;
+%         
+%         pathPoint = pathPoint + 1; 
+%         MPos
+%         optimalPath(pathPoint,:)
+%         move = distance(MPosP, optimalPath(pathPoint,:))
+%         
+%         turnNoise = normrnd(0,0.1,num,1)./(2*pi);
+%         moveNoise = normrnd(0,5,num,1);
+%         
+%         botSim.turn(turn); %turn the real robot.
+%         botSim.move(move); %move the real robot. These movements are recorded for marking
+%         for i =1:num %for all the particles.
+%             particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
+%             particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
+%         end 
+%     end 
+
+        disp('planning...')
+        optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
+        sOptPath = size(optimalPath);
+        disp('DONE!!!')
+        SD
+        if sOptPath(1)>1 && SD<8
+            pathAng = atan2(optimalPath(2, 2)-MPosP(2), optimalPath(2, 1)-MPosP(1)); 
+            turn = pathAng + MAngP+pi
+            move = distance(MPosP, optimalPath(2,:));
+
+
+        elseif SD<2.5
+            converged = 1;
+            disp('WOOHOOO, WEVE ARRIVED');
+        else
+            % Do nothing
+            turn=0.5;
+            move = 2;
+        end
+        
+        turnNoise = normrnd(0,0.1,num,1)./(2*pi);
+        moveNoise = normrnd(0,5,num,1);
+
+        botSim.turn(turn); %turn the real robot.  
+        botSim.move(move); %move the real robot. These movements are recorded for marking 
+
+        for i =1:num %for all the particles. 
+            particles(i).turn(turn+randn(1,1)/pi/2);%turnNoise(i)); %turn the particle in the same way as the real robot
+            particles(i).move(move+1*randn(1,1));%moveNoise(i)); %move the particle in the same way as the real robot
+        end
+        
+>>>>>>> f6298efa73237485108fb18efbb7a96b5ee5c7af
     %% Drawing
     %only draw if you are in debug mode or it will be slow during marking
     if botSim.debug()
@@ -226,7 +364,14 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             particles(i).drawBot(3,'b'); %draw particle with line length 3 and default color
         end
         for i = 0:pi/100:2*pi
-            plot((r*cos(i) + MPos(1,1)),(r*sin(i) + MPos(1,2)),'g') %Plots a representation of the uncertanty with a central probability of location
+            plot((r*cos(i) + MPosP(1,1)),(r*sin(i) + MPosP(1,2)),'g') %Plots a representation of the uncertanty with a central probability of location
+        end
+        AngEnd = [MPosP(1)+10*cos(MAngP),MPosP(2)+10*sin(MAngP)];
+        plot([MPosP(1),AngEnd(1)],[MPosP(2),AngEnd(2)],'r');
+        if n>=4
+            plot(optimalPath(:,1), optimalPath(:,2));
+            plot(target(1), target(2), '*');
+            plot(MPosP(1), MPosP(2), '*');
         end
         
         % Plot path
@@ -240,5 +385,6 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         
         drawnow;
     end
+
 end
 end
