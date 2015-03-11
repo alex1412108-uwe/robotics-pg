@@ -1,0 +1,1 @@
+#use tesseract for extracting ocr
