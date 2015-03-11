@@ -8,7 +8,7 @@ modifiedMap = map; %you need to do this modification yourself
 botSim.setMap(modifiedMap);
 
 %generate some random particles inside the map
-num =300; % number of particles
+num =200; % number of particles
 particles(num,1) = BotSim; %how to set up a vector of objects
 for i = 1:num
     particles(i) = BotSim(modifiedMap);  %each particle should use the same map as the botSim object
@@ -32,12 +32,11 @@ newParticles = particles;
 Pos = zeros(num,2);
 Ang = zeros(num,1);
 
-pathPoint = 1;
 
 %% Localisation code
 maxNumOfIterations = 30;
 n = 0;
-pathPoint = 1; 
+
 converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
@@ -70,19 +69,11 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     
     %% Write code for scoring your particles 
-    % Score particles based on botScan:particleEstimate
-    % Update in particleWeight(i)
-    % - Using Bayes Theorem:    (m=measurement, L=location)
-    % - - P(L|m) = 
-    %         P(m|L) * P(L) /
-    %         P(m)
-    %
-    % - - Where: P(m)=P(m|L)*P(L) + P(m|~L)*P(~L)
-    %                  and P(L)+P(~L)=1
-    %
-    % - NB: If using probabilities as weight, normalise to sum to 1
+
+    % Work out normalisation factor
     normFactor = sum(P_zr);
     
+    % Check maximum probability -> if too high then resample all particles
     MaxP = max(P_zr);
     if MaxP < 0.001
         for i = 1:num
@@ -105,9 +96,9 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     particleCounter = 1;
     for i=1:num
-        numSamples = round(particleWeight(i).*300);
+        numSamples = round(particleWeight(i).*num);
         
-        if numSamples>0 && particleCounter<=(300-numSamples)
+        if numSamples>0 && particleCounter<=(num-numSamples)
             pos = particles(i).getBotPos();
             ang = particles(i).getBotAng();
             for j=1:numSamples
@@ -118,7 +109,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         end
     end
     
-    for i=particleCounter:300
+    for i=particleCounter:num
         newParticles(particleCounter).randomPose(0);
     end
 
@@ -138,47 +129,26 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     % Mean position based on the particle locations 
     MPos = sum(Pos,1)/num; % Mean position of the particles.
-    MAng = sum(Ang,1)/num; % Mean angle of the particles. 
     
-    for i = 1:num
-        PosP(i,:) = Pos(i,:) .* particleWeight1(i);
-    end
+    PosP(:,1) = Pos(:,1).*particleWeight1';
+    PosP(:,2) = Pos(:,2).*particleWeight1';
     
     MPosP = sum(PosP,1);
     
     %calculation of the postion uncertainty
-    for i = 1:num
-        PosX(i,1) = [Pos(i,1)];
-        PosY(i,1) = [Pos(i,2)];
-    end
-    
-    for i = 1:num
-        DivX(i) = (PosX(i) - MPosP(1)).^2;
-        DivY(i) = (PosY(i) - MPosP(2)).^2;
-    end
+    DivX = (Pos(:,1)-MPos(1)).^2;
+    DivY = (Pos(:,2)-MPos(2)).^2;
 
     SDx = sqrt((1/num)*sum(DivX));
     SDy = sqrt((1/num)*sum(DivY));
         
-%     A = 1;
-%     for i = 1:num
-%         dr(i,1) = A * exp(-((DivX(i)/(2*SDx.^2)) + (DivY(i)/(2*SDy.^2))));
-%     end
        
     %radius of uncertainty based on 2 standard deviations. 
-    if SDx > SDy
-        SD = SDx;
-    else 
-        SD = SDy;
-    end
+    SD = max(SDx,SDy);
     r = 1.5*SD;
     
-    %uncertanty in angle 
-    
-    for i = 1:num
-        AngP(i) = Ang(i) .* particleWeight1(i);
-    end
-    
+    % Modified angle dependent on particle weight
+    AngP = Ang.*particleWeight1';
 
     MAngP = mod(sum(AngP),2*pi);
     if MAngP > pi
@@ -194,14 +164,12 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     % Decide if to move or not based on uncertainty
     disp(strcat('stdDev: ',num2str(SD)));
-    if sOptPath(1)>3 && SD<20
+    if sOptPath(1)>3 && SD<25
         pathAng = atan2(optimalPath(4, 2)-MPosP(2), optimalPath(4, 1)-MPosP(1)); 
         disp(strcat('pathAng: ',num2str(pathAng)));
         disp(strcat('MAngP: ',num2str(MAngP)));
         turn = pathAng - MAngP;
         move = distance(MPosP, optimalPath(2,:));
-
-        move = move;
 
     elseif SD<8
         converged = 1;
