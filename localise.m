@@ -159,7 +159,8 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     %% Write code to decide how to move next
     % Get optimal path
     disp('planning...')
-    optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
+    optimalPath = Astar( modifiedMap, round(target), round(MPosP)); 
+    NewPosition = getMovePosition(optimalPath);
     sOptPath = size(optimalPath);
     
     % Decide if to move or not based on uncertainty
@@ -167,7 +168,8 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     if sOptPath(1)>3 && SD<25
         pathAng = atan2(optimalPath(4, 2)-MPosP(2), optimalPath(4, 1)-MPosP(1)); 
         turn = pathAng - MAngP;
-        move = distance(MPosP, optimalPath(2,:));
+%         move = distance(MPosP, optimalPath(2,:));
+        move = distance(MPosP, NewPosition)
 
     elseif SD<8
         converged = 1;
