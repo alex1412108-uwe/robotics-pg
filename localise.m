@@ -201,7 +201,8 @@ Ang = zeros(num,1);
 
 
         disp('planning...')
-        optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
+        optimalPath = Astar( modifiedMap, round(target), round(MPosP));
+        getMovePosition(optimalPath);
         sOptPath = size(optimalPath);
         disp(strcat('stdDev: ',num2str(SD)));
         if sOptPath(1)>3 && SD<20
