@@ -29,6 +29,9 @@ P_zr = zeros(num,1);
 
 newParticles = particles;
 
+Pos = zeros(num,2);
+Ang = zeros(num,1);
+
 pathPoint = 1;
 
 %% Localisation code
@@ -50,7 +53,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     for i=1:num
         % particle measurement
         measurement = particles(i).ultraScan();
-        turnAmount = 1;
+        
         % rotate array and find error
         for j=1:length(botScan)
             shifted = circshift(measurement,j);
@@ -59,10 +62,8 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             P_zr_temp = exponential/sqrt(2*pi*sensorStdDev^2) - exp(-1*j);
             if P_zr_temp>P_zr(i)
                 P_zr(i)=P_zr_temp+dampingFactor;
-                turnAmount = j;
             end     
         end
-%         particles(i).turn((turnAmount-1)*2*pi / length(botScan) - pi);
     end
     
     
@@ -120,11 +121,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     for i=particleCounter:300
         newParticles(particleCounter).randomPose(0);
     end
-%     disp(particleCounter);
-    
-    
-    
-    
+
     % Update particles location for plotting and next iteration
     particles=newParticles;
     
@@ -133,12 +130,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     P_zr = zeros(num,1);
     
     %% Write code to check for convergence 
-    % Check how close particles are to each other
-    % - if within tolerance, set convergence=1
-    
-   
-Pos = zeros(num,2);
-Ang = zeros(num,1);
+
     for i = 1:num %find bot pos from readings
         Pos(i,:) = particles(i).getBotPos();
         Ang(i,1) = particles(i).getBotAng();
@@ -195,37 +187,36 @@ Ang = zeros(num,1);
 
     
     %% Write code to decide how to move next
-    % here they just turn in cicles as an example
+    % Get optimal path
+    disp('planning...')
+    optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
+    sOptPath = size(optimalPath);
+    
+    % Decide if to move or not based on uncertainty
+    disp(strcat('stdDev: ',num2str(SD)));
+    if sOptPath(1)>3 && SD<20
+        pathAng = atan2(optimalPath(4, 2)-MPosP(2), optimalPath(4, 1)-MPosP(1)); 
+        disp(strcat('pathAng: ',num2str(pathAng)));
+        disp(strcat('MAngP: ',num2str(MAngP)));
+        turn = pathAng - MAngP;
+        move = distance(MPosP, optimalPath(2,:));
 
-    turn=0;
+        move = move;
 
-
-        disp('planning...')
-        optimalPath = Astar( modifiedMap, round(target), round(MPosP));  
-        sOptPath = size(optimalPath);
-        disp(strcat('stdDev: ',num2str(SD)));
-        if sOptPath(1)>3 && SD<20
-            pathAng = atan2(optimalPath(4, 2)-MPosP(2), optimalPath(4, 1)-MPosP(1)); 
-            disp(strcat('pathAng: ',num2str(pathAng)));
-            disp(strcat('MAngP: ',num2str(MAngP)));
-            turn = pathAng - MAngP;
-            move = distance(MPosP, optimalPath(2,:));
-            
-            move = move;
-
-        elseif SD<8
-            converged = 1;
-            disp('WOOHOOO, WEVE ARRIVED');
-        else
-            % Do nothing
-            turn=0.5;
-            move = 2;
-        end
+    elseif SD<8
+        converged = 1;
+        disp('WOOHOOO, WEVE ARRIVED');
+    else
+        % Do nothing
+        turn=0.5;
+        move = 2;
+    end
         
-        disp('turn...');
-        disp(turn);
-        disp('---');
+%         disp('turn...');
+%         disp(turn);
+%         disp('---');
         
+        % Set turn and movement noise
         turnNoise = normrnd(0,5,num,1)./(2*pi);
         moveNoise = normrnd(0,0.5,num,1);
 
@@ -251,19 +242,9 @@ Ang = zeros(num,1);
         end
         AngEnd = [MPosP(1)+10*cos(MAngP),MPosP(2)+10*sin(MAngP)];
         plot([MPosP(1),AngEnd(1)],[MPosP(2),AngEnd(2)],'r');
-        if n>=4
-            plot(optimalPath(:,1), optimalPath(:,2));
-            plot(target(1), target(2), '*');
-            plot(MPosP(1), MPosP(2), '*');
-        end
         
-        % Plot path
-        if n>=4
-            disp('plotting path');
-            plot(optimalPath(:,1),optimalPath(:,2),'r');
-            hold on; 
-        end
-        
+        % Plot path+target
+        plot(optimalPath(:,1),optimalPath(:,2),'r');
         plot(target(1),target(2),'r*');
         
         drawnow;
