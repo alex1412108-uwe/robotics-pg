@@ -166,8 +166,6 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     disp(strcat('stdDev: ',num2str(SD)));
     if sOptPath(1)>3 && SD<25
         pathAng = atan2(optimalPath(4, 2)-MPosP(2), optimalPath(4, 1)-MPosP(1)); 
-        disp(strcat('pathAng: ',num2str(pathAng)));
-        disp(strcat('MAngP: ',num2str(MAngP)));
         turn = pathAng - MAngP;
         move = distance(MPosP, optimalPath(2,:));
 
@@ -179,22 +177,26 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         turn=0.5;
         move = 2;
     end
-        
-%         disp('turn...');
-%         disp(turn);
-%         disp('---');
-        
-        % Set turn and movement noise
-        turnNoise = normrnd(0,5,num,1)./(2*pi);
-        moveNoise = normrnd(0,0.5,num,1);
+    
+    % Check turn is between -pi and pi
+    if (turn<-2*pi)
+        turn=turn+2*pi;
+    elseif (turn>2*pi)
+        turn=turn-2*pi;
+    end
+    
 
-        botSim.turn(turn); %turn the real robot.  
-        botSim.move(move); %move the real robot. These movements are recorded for marking 
+    % Set turn and movement noise
+    turnNoise = normrnd(0,5,num,1)./(2*pi);
+    moveNoise = normrnd(0,0.5,num,1);
 
-        for i =1:num %for all the particles. 
-            particles(i).turn(turn+turnNoise(i)); %turn the particle in the same way as the real robot
-            particles(i).move(move+moveNoise(i)); %move the particle in the same way as the real robot
-        end
+    botSim.turn(turn); %turn the real robot.  
+    botSim.move(move); %move the real robot. These movements are recorded for marking 
+
+    for i =1:num %for all the particles. 
+        particles(i).turn(turn+turnNoise(i)); %turn the particle in the same way as the real robot
+        particles(i).move(move+moveNoise(i)); %move the particle in the same way as the real robot
+    end
         
     %% Drawing
     %only draw if you are in debug mode or it will be slow during marking
