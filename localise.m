@@ -166,13 +166,14 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     %% Write code to decide how to move next
     % Get optimal path
-    disp('planning...')
     
     [C I] = min(botScan);
     if C < 5
-        move = 5;
+        move = 2;
         turn = -I*(pi/3);
     else
+         disp('planning...')
+
         optimalPath = Astar( modifiedMap, round(target), round(MPosP));
         
         sOptPath = size(optimalPath);
