@@ -1,4 +1,4 @@
-function nextPosition = getMovePosition
+function nextPosition = getMovePosition(nextPosition)
 % Inputs: optimal Path -> [nx2] vector of X,Y coordinates
 % Outputs: nextPosition -> [1x2] vector of furthest XY coordinate in line
 optimalPath = [0,0;1,1;2,2;1,2];
@@ -18,5 +18,4 @@ while escape == 0
         end
     end
 end
-
-Move
+nextPosition = optimalPath(Move+1,:);
