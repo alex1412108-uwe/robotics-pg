@@ -44,12 +44,9 @@ closedCount = size(closed, 1);
 
 xNode = round(currPose(1)/2);
 yNode = round(currPose(2)/2); 
-currPoseX = round(currPose(1)/2); 
-currPoseY = round(currPose(2)/2); 
+
 xTarget = round(target(1)/2);
 yTarget = round(target(2)/2); 
-targetX = round(target(1)/2); 
-targetY = round(target(2)/2); 
 
 openCount = 1;
 pathCost = 0; 
@@ -137,7 +134,7 @@ if ((xVal == xTarget) && (yVal == yTarget))
     parentX = open(nodeIndex(open, xVal, yVal), 4); 
     parentY = open(nodeIndex(open, xVal, yVal), 5); 
     
-    while( parentX ~= currPoseX || parentY ~= currPoseY)
+    while( parentX ~= currPose(1) || parentY ~= currPose(2))
         optimalPath(i,1) = parentX;
         optimalPath(i,2) = parentY; 
         

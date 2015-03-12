@@ -27,18 +27,18 @@ maps = cell(3,1); %needed for making jagged arrays
 % maps{1} = [0,0;60,0;60,45;45,45]; %Quadrilateral Map
 maps{1} = [0,0;60,0;60,45;45,45;45,59;106,59;106,105;0,105]; %default map
 maps{2} = [0,0;60,0;60,50;100,50;70,0;110,0;150,80;30,80;30,40;0,80]; %long map
-maps{3} = [-30,0;-30,40;30,40;30,60;5,60;45,90;85,60;60,60;60,40;120,40;120,60;95,60;135,90;175,60;150,60;150,40;210,40;210,60;185,60;225,90;265,60;240,60;240,40;300,40;300,0]; %repeated features
+maps{3} = [0,0;0,40;30,40;30,60;5,60;45,90;85,60;60,60;60,40;120,40;120,60;95,60;135,90;175,60;150,60;150,40;210,40;210,60;185,60;225,90;265,60;240,60;240,40;300,40;300,0]; %repeated features
 
 %Different noise levels to be tested
-noiseLevel(:,1) = [0,0,0]; %no noise
-% noiseLevel(:,2) = [1,0.001,0.0005]; %all the noise
+% noiseLevel(:,1) = [0,0,0]; %no noise
+noiseLevel(:,2) = [1,0.001,0.0005]; %all the noise
 
 %The number of time the function is run so that the average performance can
 %be calculated. This will be much larger during real marking.
 %if the value is 1 it will run from predefined start and target positions
 %If the number is greater than 1, the first test will be from predefined
 %positions, and the rest will be randomised.
-numberOfrepeats = 1;
+numberOfrepeats = 5;
 
 %Predefined start and target positions
 startPositions =  [20,20;30,20;50,70 ]; %These will change
