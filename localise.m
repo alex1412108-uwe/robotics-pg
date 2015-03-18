@@ -7,8 +7,15 @@ function [botSim] = localise(botSim,map,target)
 modifiedMap = modifyMap1(map); %you need to do this modification yourself
 botSim.setMap(map);
 [closed, maxX, maxY] = AstarMap(modifiedMap) ;
+
+
 %generate some random particles inside the map
-num =100; % number of particles
+% - get area of map
+mapArea = polyarea(map(:,1),map(:,2));
+% - area per particle, and num of particles
+areaPerParticle = 50;
+num = round(mapArea/areaPerParticle);
+
 particles(num,1) = BotSim; %how to set up a vector of objects
 for i = 1:num
     particles(i) = BotSim(map);  %each particle should use the same map as the botSim object
@@ -239,18 +246,13 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         for i =1:num
             particles(i).drawBot(3,'b'); %draw particle with line length 3 and default color
         end
-        for i = 0:pi/100:2*pi
-            plot((r*cos(i) + MPosP(1,1)),(r*sin(i) + MPosP(1,2)),'g') %Plots a representation of the uncertanty with a central probability of location
-        end
+
         AngEnd = [MPosP(1)+10*cos(MAngP),MPosP(2)+10*sin(MAngP)];
         plot([MPosP(1),AngEnd(1)],[MPosP(2),AngEnd(2)],'r');
         
         % Plot path+target
         plot(optimalPath(:,1),optimalPath(:,2),'r');
         plot(target(1),target(2),'r*');
-        for i = 0:pi/100:2*pi
-            plot((5*cos(i) + target(1)),(5*sin(i) + target(2)),'r') %Plots a representation of the uncertanty with a central probability of location
-        end
         
         
         drawnow;
