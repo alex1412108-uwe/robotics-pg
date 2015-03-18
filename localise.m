@@ -8,7 +8,7 @@ modifiedMap = modifyMap1(map); %you need to do this modification yourself
 botSim.setMap(map);
 [closed, maxX, maxY] = AstarMap(modifiedMap) ;
 %generate some random particles inside the map
-num =200; % number of particles
+num =100; % number of particles
 particles(num,1) = BotSim; %how to set up a vector of objects
 for i = 1:num
     particles(i) = BotSim(map);  %each particle should use the same map as the botSim object
@@ -38,6 +38,9 @@ maxNumOfIterations = 100;
 n = 0;
 count1 = 0;
 
+
+% Counter to check elapsed time doesn't exceed 2:30
+elapsedTime = tic;
 
 converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
@@ -83,9 +86,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         end
         particleWeight = zeros(1,num) + 1/num;
     else
-        for i=1:num
-            particleWeight(i) = P_zr(i)/normFactor;
-        end
+        particleWeight = P_zr'./normFactor;
     end
     
     particleWeight1 = particleWeight;
@@ -253,6 +254,11 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         
         
         drawnow;
+    end
+    
+    %% Check elapsed time doesn't exceed 2:30
+    if toc(elapsedTime) > 200
+        converged = 1;
     end
     
 end
