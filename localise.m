@@ -178,7 +178,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     [C, I] = min(botScan);
     if C < 3
         move = 5;
-        turn = -I*(pi/3);
+        turn = -I*(pi/3) + rand*pi/2;
     else
          %disp('planning...')
 
@@ -196,7 +196,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             turn = pathAng - MAngP;
             if SD < 6
                 move = distanceLine(MPosP(1), MPosP(2), NewPosition(1), NewPosition(2));
-                move = max(move,3);
+                move = max(move,5);
             else
                 move = distance(MPosP, optimalPath(2,:));
             end
