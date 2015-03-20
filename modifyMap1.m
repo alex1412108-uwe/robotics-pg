@@ -9,7 +9,7 @@ function[modifiedMap] = modifyMap1(map)
 % map = maps{1};
 %% setup code
 %you can modify the map to take account of your robots configuration space
-robot = sqrt(18);
+robot = 12;
 L = length(map);
 modifiedMap = map;
 %% point 1

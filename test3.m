@@ -10,9 +10,11 @@ maps{3} = [0,0;0,40;30,40;30,60;5,60;45,90;85,60;60,60;60,40;120,40;120,60;95,60
 map = maps{3};
 modifiedMap = modifyMap1(map);
 points = polygrid(modifiedMap(:,1), modifiedMap(:,2), 0.25);
-plot(map(:,1),map(:,2),'lineWidth',2,'Color','r'); % draws arena
+map1 = [map(:,:); map(1,:)];
+modifiedMap1 = [modifiedMap(:,:); modifiedMap(1,:)];
+plot(map1(:,1),map1(:,2),'lineWidth',2,'Color','r'); % draws arena
 hold on;
-plot(modifiedMap(:,1),modifiedMap(:,2),'lineWidth',2,'Color','g'); % draws arena
+plot(modifiedMap1(:,1),modifiedMap1(:,2),'lineWidth',2,'Color','g'); % draws arena
 axis equal; %keeps the x and y scale the same
 hold on; %
 scatter(points(:,1), points(:,2)); 
@@ -23,3 +25,5 @@ hold on;
 optimalPath = Astar( closed, maxX, maxY, target, currPose);
 
 plot(optimalPath(:,1), optimalPath(:,2), 'lineWidth', 2, 'Color', 'b'); 
+
+legend('Map', 'Modified map', 'Nodes', 'Path planned');

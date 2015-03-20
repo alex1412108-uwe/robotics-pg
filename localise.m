@@ -13,9 +13,10 @@ botSim.setMap(map);
 % - get area of map
 mapArea = polyarea(map(:,1),map(:,2));
 % - area per particle, and num of particles
-areaPerParticle = 50;
+areaPerParticle = 30;
 num = round(mapArea/areaPerParticle);
 
+optimalPath = zeros(1,2);
 particles(num,1) = BotSim; %how to set up a vector of objects
 for i = 1:num
     particles(i) = BotSim(map);  %each particle should use the same map as the botSim object
@@ -23,15 +24,17 @@ for i = 1:num
 end
 
 % Set scan parameters
-numScans = 6;
-botSim.generateScanConfig(numScans);
+numScans = 12;
+sc = botSim.generateScanConfig(numScans);
+botSim.setScanConfig(sc);
 for i=1:num
-    particles(i).generateScanConfig(numScans);
+%     particles(i).generateScanConfig(numScans);
+    particles(i).setScanConfig(sc);
 end
 
 % Particle weight array (initialise to equal values)
 particleWeight = zeros(1,num) + 1/num;
-sensorStdDev = 3;
+sensorStdDev = 5;
 P_zr = zeros(num,1);
 
 newParticles = particles;
@@ -53,6 +56,8 @@ converged =0; %The filter has not converged yet
 while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     n = n+1; %increment the current number of iterations
     botScan = botSim.ultraScan(); %get a scan from the real robot.
+   
+    %botScan --------<<<<<<<<<<<<< helps for robot debug to test scans
     % Returns distance to walls
     % NB: can't use crossing points... Duh.
     
@@ -60,11 +65,10 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     % Predict probability for particle in current location
     % - P(measurement|location)
     % - - Based on estimated ultrasound error
-    dampingFactor = 0.00001;
+    dampingFactor = 0.0001;
     for i=1:num
         % particle measurement
         measurement = particles(i).ultraScan();
-        
         % rotate array and find error
         for j=1:length(botScan)
             shifted = circshift(measurement,j);
@@ -87,7 +91,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     % Check maximum probability -> if too high then resample all particles
     MaxP = max(P_zr);
-    if MaxP < 0.001
+    if MaxP < 0.00001*num
         for i = 1:num
             particles(i).randomPose(0);
         end
@@ -174,16 +178,22 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     %% Write code to decide how to move next
     % Get optimal path
-    
-    [C, I] = min(botScan);
-    if C < 3
-        move = 5;
-        turn = -I*(pi/3) + rand*pi/2;
-    else
-         %disp('planning...')
+    X = sprintf('I think I am at position(x,y): %d %d  and orientation: %d with standard deviation :%d '...
+        , round(MPosP(1)), round(MPosP(2)), round(180*MAngP/pi), round(SD));
 
-        optimalPath = Astar( closed, maxX, maxY, round(target), round(MPosP));
-        
+    disp(X) %%%% needed for accuracy marks 
+    
+    % avoid walls 
+    [C, I] = min(botScan);
+    if C < 7
+        disp('wall!')
+        %turn = 0; 
+        turn = (I-1)*(2*pi/numScans) + rand*pi/(2*numScans);
+        move = -5 - rand*2;
+        botScan %debugging
+    else % call Astar 
+        disp('planning...')
+        optimalPath = Astar( closed, maxX, maxY, round(target), round(MPosP));    
         sOptPath = size(optimalPath);
         if sOptPath(1)>2
             NewPosition = getMovePosition(optimalPath);
@@ -191,17 +201,18 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         
         % Decide if to move or not based on uncertainty
         %disp(strcat('stdDev: ',num2str(SD)));
-        if sOptPath(1)>3 && SD<20
+        if sOptPath(1)>3 && SD < 30
+            disp('following path')
             pathAng = atan2(optimalPath(4, 2)-MPosP(2), optimalPath(4, 1)-MPosP(1));
             turn = pathAng - MAngP;
-            if SD < 6
+            if SD < 15
                 move = distanceLine(MPosP(1), MPosP(2), NewPosition(1), NewPosition(2));
-                move = max(move,5);
+                move = max(move,15);
             else
                 move = distance(MPosP, optimalPath(2,:));
             end
-            
-        elseif SD < 6
+        % check we have arrived    
+        elseif SD <8 && distanceLine(MPosP(1), MPosP(2), target(1), target(2)) < 5
             converged = 1;
             if distanceLine(MPosP(1), MPosP(2), target(1), target(2)) <= 3
             disp('WOOHOOO, WEVE ARRIVED');
@@ -212,9 +223,11 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             disp('WOOHOOO, WEVE ARRIVED 2');
             end      
         else
-            % Do nothing
-            turn=0.5;
-            move = 2;
+            % move randomly until localised
+            [C, I] = max(botScan);
+            disp('searching')
+            turn = I*pi/6 + rand*pi/18;
+            move = 2 + round(rand*0.1*C);
         end
         
         % Check turn is between -pi and pi
@@ -224,8 +237,11 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
             turn=turn-2*pi;
         end
     end
+   
     
-    % Set turn and movement noise
+    turn
+    move
+    % Set turn and movement noise for particles
     turnNoise = normrnd(0,5,num,1)./(2*pi);
     moveNoise = normrnd(0,0.5,num,1);
     
@@ -253,8 +269,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         % Plot path+target
         plot(optimalPath(:,1),optimalPath(:,2),'r');
         plot(target(1),target(2),'r*');
-        
-        
+               
         drawnow;
     end
     

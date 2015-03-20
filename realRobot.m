@@ -1,100 +1,153 @@
-classdef realRobot < handle    
-%%%%%%%%%%%%%     
-properties (SetAccess = private, GetAccess = private)
-    sense;
-    SENSOR_1;
-    mA = NXTMotor('A');
-    mB = NXTMotor('B');
-    mC = NXTMotor('C');
-    map;    %map coordinates with a copy of the first coordiantes at the end
-    mapLines;   %The map stored as a list of lines (for easy line interection)
-    inpolygonMapformatX; %The map stored as a polygon for the insidepoly function
-    inpolygonMapformatY; %The map stored as a polygon for the insidepoly function
-end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%% Robotic Systems March 2015 %%%%%%%%%%
+%%%%%%%%%% Team LDCA - Lost Robot Cwk %%%%%%%%%%
+%%%%%%%%%% Class for real robot task  %%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%public properties
-properties
-    unmodifiedMap;
-end
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-        methods           
+classdef realRobot < handle
+    %%%%%%%%%%%%%
+    properties (SetAccess = private, GetAccess = private)
+        sense;  % Sensor readings
+        s1;     % Ultrasonic sensor
+        mA;     % Motor A (Ultrasound motor)
+        mB;     % Motor B >>>>>>>>>>>>> I believe motor B is left (but I am trying to work this out from home so forgive if I am wrong)
+        mC;     % Motor C >>>>>>>>>>>>> I believe motor C is right (ditto) i.e.  it turns anti-clockwise when given a positive turn angle
+        map;    % map coordinates with a copy of the first coordiantes at the end
+        mapLines;   % The map stored as a list of lines (for easy line interection)
+        inpolygonMapformatX; % The map stored as a polygon for the insidepoly function
+        inpolygonMapformatY; % The map stored as a polygon for the insidepoly function
+    end
+    
+    %public properties
+    properties
+        unmodifiedMap; % map
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    methods
         
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%  
-
-        function sense = ultraScan(robot, sense)               
-            calibrationAng = 15; 
-            scanAng = 60;
-            sense = zeros(6,1); % to return sensor measurements in vector form 
-        % scan in 60 degree steps
-        for i = 1:6
-            sense(i) = GetUltrasonic(SENSOR_1); % ultrasound value
-            mA = NXTMotor('A', 'Power', 50, 'TachoLimit', scanAng);
+        %%%%%%%%%%%%%%%%%%%%%%%%
+        %% Function for Sensing
+        
+        function sense = ultraScan(robot, sense)
+            scanNum = 12; %%%%% change to match numScans in localise
+            scanAng = 360/scanNum;
+            sense = zeros(scanNum,1); % to return sensor measurements in vector form
+            s1 = SENSOR_1;
+            % scan steps
+            for i = 1:scanAng
+                sense(i) = GetUltrasonic(s1); % ultrasound value
+                mA = NXTMotor('A', 'Power', 80, 'TachoLimit', scanAng);
+                mA.SendToNXT();
+                mA.WaitFor();
+                mA.Stop('brake')
+                senseAng(i) = mA.ReadFromNXT();
+            end
+            
+            %print out scan is useful in debug (or use in localise)
+            %sense
+            
+            % Spin back to start position
+            mA = NXTMotor('A', 'Power', -100, 'TachoLimit', 360);
             mA.SendToNXT();
-            mA.WaitFor(); 
-            mA.Stop('brake') 
-            senseAng(i) = mA.ReadFromNXT();
-        end
-        % transform sense    ------- I think this should be changed
-         sense(1) = sense(1) + calibrationAng; 
-         sense(2) = sense(2) + (calibrationAng*cosd(scanAng));
-         sense(3) = sense(3) + (calibrationAng*cosd(2*scanAng));
-         sense(4) = sense(4) - calibrationAng; 
-         sense(5) = sense(5) + (calibrationAng*cosd(2*scanAng));
-         sense(6) = sense(6) + (calibrationAng*cosd(scanAng));
-        % Spin back
-        mA = NXTMotor('A', 'Power', -50, 'TachoLimit', 360);
-        mA.SendToNXT();
-        mA.WaitFor(); % without this the motor will barely move!
-        mA.Stop('brake');
-        senseAng = mA.ReadFromNXT();
+            mA.WaitFor();
+            mA.Stop('brake');
+            senseAng = mA.ReadFromNXT();
+            disp(senseAng.Position);
+            
+            % stops position drift
+            if abs(senseAng.Position) > 2
+                if senseAng.Position<0
+                    power = 20;
+                else
+                    power = -20;
+                end
+                mA = NXTMotor('A','Power',power,'TachoLimit',abs(senseAng.Position));
+                mA.SendToNXT();
+                mA.WaitFor();
+                mA.Stop('brake');
+            end
+            
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Function to move robot
         
-        function move(robot, move) 
-        straightSpeed = -50;    
-        calibration = 28;
-        angle = move*calibration; 
-        mStraight = NXTMotor([MOTOR_B, MOTOR_C]);
-        mStraight.SpeedRegulation   = false;  % not for sync mode
-        mStraight.Power             = straightSpeed; 
-        mStraight.TachoLimit        = round(angle);
-        mStraight.ActionAtTachoLimit = 'Brake';
-        mStraight.SendToNXT();
+        function move(robot, move)
+            
+            % Useful in debug
+            % move
+            
+            % speed is between -100 and 100
+            straightSpeed = 80;
+            
+            % can reverse (reverses when it hits a wall - could change it to reduce number of turns?)
+            if move < 0
+                straightSpeed = -straightSpeed;
+                move = -move;
+            end
+            
+            calibration = 28; % Calibration based on the distance travelled with full 360deg turn of wheels (floor material dependant)
+            angle = move*calibration; % (Angle the wheels must turn in order to make move)
+            mStraight = NXTMotor([MOTOR_B, MOTOR_C]);
+            mStraight.SpeedRegulation   = false;  % not for sync mode
+            mStraight.Power             = straightSpeed;
+            mStraight.TachoLimit        = round(angle);
+            mStraight.ActionAtTachoLimit = 'Brake';
+            mStraight.SendToNXT();
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Function to turn Robot
         
-        function turn(robot, turn) 
-        turningSpeed = -40; 
-        calibrationRadii = 4.9;
-        calibration = 28;
-        if turn < 0
-            turn = - turn; 
-            turningSpeed = - turningSpeed;
-        end
-       
-        arc = calibrationRadii*turn;
-        angleTurn = round(arc*calibration); 
-        
-        mTurn1                      = NXTMotor('B'); 
-        mTurn1.Power                = turningSpeed;
-        mTurn1.TachoLimit           = angleTurn;        
-        
-        mTurn2                       = NXTMotor('C');   
-        mTurn2.Power                 = -turningSpeed;
-        mTurn2.TachoLimit            = angleTurn;
-        
-        mTurn1.SendToNXT();
-        mTurn1.WaitFor();     
-        mTurn2.SendToNXT();
-        mTurn2.WaitFor();
-              
+        function turn(robot, turn)
+            
+            % Useful for debug
+            % turn
+            
+            % Turning speed set such that a positive turn angle relates to
+            % anti-clockwise turn (I think, double check if going the wrong
+            % way)
+            turningSpeed = -60;
+            calibrationRadii = 6.5; % Roughly based on the wheel radii and calibrated a bit
+            calibration = 28; % as before
+            
+            % Negative turn angle reverses the turn direction
+            if turn < 0
+                turn = - turn;
+                turningSpeed = - turningSpeed;
+            end
+            
+            % arc is the length the wheel needs to move
+            arc = calibrationRadii*turn;
+            % turn angle is the angle the motor needs to turn to make the
+            % arc
+            angleTurn = round(arc*calibration);
+            
+            % Avoid getting stuck on inf
+            if turn == 0
+                angleTurn = 1;
+            end
+            
+            % set the parameters for the motors
+            mTurn1                      = NXTMotor('B');
+            mTurn1.Power                = turningSpeed;
+            mTurn1.TachoLimit           = angleTurn;
+            
+            mTurn2                       = NXTMotor('C');
+            mTurn2.Power                 = -turningSpeed;
+            mTurn2.TachoLimit            = angleTurn;
+            
+            % send commands 
+            mTurn1.SendToNXT();
+            mTurn2.SendToNXT();
+            mTurn1.WaitFor();
+            mTurn2.WaitFor();
+            
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        
+        %% Function to set the map (taken from botSim)
         function setMap(robot, map1)
             robot.unmodifiedMap = map1;
             robot.inpolygonMapformatX = cat(1,map1(:,1), map1(1,1));
@@ -108,22 +161,33 @@ end
             end
         end
         
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Function to generateScanConfig - can leave blank
         function generateScanConfig(robot, numScans)
         end
         
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Function to generateScanConfig - set to debug mode to draw map
         function d = debug(robot)
-            d = true; 
+            d = true;
         end
         
-         function drawMap(robot)
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Function to drawMap - taken from botSim
+        function drawMap(robot)
             plot(robot.map(:,1),robot.map(:,2),'lineWidth',2,'Color','r'); % draws arena
             axis equal; %keeps the x and y scale the same
             hold on; %
-         end
-        
-        function drawBot(robot,lineLength,col)
-            hold on; 
         end
         
-    end
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        %% Function to drawBot - taken from botSim
+        function drawBot(robot,lineLength,col)
+            hold on;
+        end
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    end % end of methods
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end

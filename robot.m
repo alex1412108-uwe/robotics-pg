@@ -1,40 +1,65 @@
-COM_CloseNXT all;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%% Robotic Systems March 2015 %%%%%%%%%%
+%%%%%%%%%% Team LDCA - Lost Robot Cwk %%%%%%%%%%
+%%%%%%%%%% Main fnc in real robot task %%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-COM_CloseNXT all
+%%%% Close any previously open NXT and prep 
+COM_CloseNXT all;
 close all
 clear all
 format compact
 
+%%%% Define ports for use 
 Ports = [MOTOR_A; MOTOR_B; MOTOR_C; SENSOR_1];
 
+%%%% Open ports
 h=COM_OpenNXT(); 
-COM_SetDefaultNXT(h); % begining bit 
+COM_SetDefaultNXT(h); 
 
+%%%% Open sensor 
 OpenUltrasonic(SENSOR_1); 
 
+%%%% define robot object
 r = realRobot;
 
-map = [0,0;60,0;60,45;45,45;45,59;106,59;106,105;0,105];
-target = [30,30]; 
 
-%%%%%%% bit for the localise
+%%%%%%%%%%%%%%%%%%%%%%%%%% To be defined on testing day
 
-%  localise(r, map, target);  
+%%%% define map (currently set to the practise map)
+map = [0,0;66,0;66,44;44,44;44,66;110,66;110,110;0,110];
 
-%  h = figure;
-%  hold on; 
+%%%% define a target (currently set to arbritray point) 
+target = [80, 80]; 
 
-%%%%%% bit for testing ultrascan
+
+%%%%%% ^^^^^^ For testing only
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+tic %starts timer
+
+%%%% Create a figure for drawing 
+figure;
+hold on; 
+
+%%%% Call the localise function using: robot, map and target
+localise(r, map, target);  
+
+resultsTime = toc %stops timer
+
+%calculated how far away your robot thinks it is from the target
+resultsDis =  distance(target, MPosP)
+
+
+%%%% Useful commands for debugging 
+
 % sense = r.ultraScan 
-
-%%%%%% bit for testing move
-% move = 5;
+% move = 15;
 % r.move(move); 
+% turn = pi/2;
+% r.turn(turn); 
 
-%%%%%% bit for testing turn
- turn = pi/2;
- r.turn(turn);
-
+%%%% Close up at end    
 CloseSensor(SENSOR_4); 
 COM_CloseNXT(h);
 clear all; 
