@@ -13,7 +13,7 @@ botSim.setMap(map);
 % - get area of map
 mapArea = polyarea(map(:,1),map(:,2));
 % - area per particle, and num of particles
-areaPerParticle = 30;
+areaPerParticle = 20;
 num = round(mapArea/areaPerParticle);
 
 optimalPath = zeros(1,2);
@@ -24,7 +24,7 @@ for i = 1:num
 end
 
 % Set scan parameters
-numScans = 12;
+numScans = 8;
 sc = botSim.generateScanConfig(numScans);
 botSim.setScanConfig(sc);
 for i=1:num
@@ -34,7 +34,7 @@ end
 
 % Particle weight array (initialise to equal values)
 particleWeight = zeros(1,num) + 1/num;
-sensorStdDev = 5;
+sensorStdDev = 4;
 P_zr = zeros(num,1);
 
 newParticles = particles;
@@ -185,10 +185,20 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
     
     % avoid walls 
     [C, I] = min(botScan);
-    if C < 7
+    if C < 10
         disp('wall!')
         %turn = 0; 
-        turn = (I-1)*(2*pi/numScans) + rand*pi/(2*numScans);
+        %turn = (I-1)*(2*pi/numScans) + rand*pi/(2*numScans);
+        turn = (I-numScans/2) * pi/numScans;
+        if abs(turn)<0.001
+            turn=0.001;
+        end
+        turn = turn*-1;
+        if (turn<-pi)
+            turn=turn+2*pi;
+        elseif (turn>pi)
+            turn=turn-2*pi;
+        end
         move = -5 - rand*2;
         botScan %debugging
     else % call Astar 
@@ -201,7 +211,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         
         % Decide if to move or not based on uncertainty
         %disp(strcat('stdDev: ',num2str(SD)));
-        if sOptPath(1)>3 && SD < 30
+        if sOptPath(1)>3 && SD < 25
             disp('following path')
             pathAng = atan2(optimalPath(4, 2)-MPosP(2), optimalPath(4, 1)-MPosP(1));
             turn = pathAng - MAngP;
@@ -212,7 +222,7 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
                 move = distance(MPosP, optimalPath(2,:));
             end
         % check we have arrived    
-        elseif SD <8 && distanceLine(MPosP(1), MPosP(2), target(1), target(2)) < 5
+        elseif SD <10 && distanceLine(MPosP(1), MPosP(2), target(1), target(2)) < 5
             converged = 1;
             if distanceLine(MPosP(1), MPosP(2), target(1), target(2)) <= 3
             disp('WOOHOOO, WEVE ARRIVED');
@@ -238,9 +248,6 @@ while(converged == 0 && n < maxNumOfIterations) %%particle filter loop
         end
     end
    
-    
-    turn
-    move
     % Set turn and movement noise for particles
     turnNoise = normrnd(0,5,num,1)./(2*pi);
     moveNoise = normrnd(0,0.5,num,1);

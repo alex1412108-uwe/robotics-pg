@@ -16,6 +16,7 @@ classdef realRobot < handle
         mapLines;   % The map stored as a list of lines (for easy line interection)
         inpolygonMapformatX; % The map stored as a polygon for the insidepoly function
         inpolygonMapformatY; % The map stored as a polygon for the insidepoly function
+        scanNum; %default value)
     end
     
     %public properties
@@ -29,13 +30,17 @@ classdef realRobot < handle
         %%%%%%%%%%%%%%%%%%%%%%%%
         %% Function for Sensing
         
-        function sense = ultraScan(robot, sense)
-            scanNum = 12; %%%%% change to match numScans in localise
-            scanAng = 360/scanNum;
-            sense = zeros(scanNum,1); % to return sensor measurements in vector form
+        function setScanConfig(robot, sc)
+            robot.scanNum = length(sc);
+        end
+        
+        function sense = ultraScan(robot)
+            %scanNum = 12; %%%%% change to match numScans in localise
+            scanAng = 360/robot.scanNum;
+            sense = zeros(robot.scanNum,1); % to return sensor measurements in vector form
             s1 = SENSOR_1;
             % scan steps
-            for i = 1:scanAng
+            for i = 1:robot.scanNum
                 sense(i) = GetUltrasonic(s1); % ultrasound value
                 mA = NXTMotor('A', 'Power', 80, 'TachoLimit', scanAng);
                 mA.SendToNXT();
@@ -45,10 +50,10 @@ classdef realRobot < handle
             end
             
             %print out scan is useful in debug (or use in localise)
-            %sense
+            sense;
             
             % Spin back to start position
-            mA = NXTMotor('A', 'Power', -100, 'TachoLimit', 360);
+            mA = NXTMotor('A', 'Power', -100, 'TachoLimit', 360-scanAng);
             mA.SendToNXT();
             mA.WaitFor();
             mA.Stop('brake');
@@ -95,6 +100,7 @@ classdef realRobot < handle
             mStraight.TachoLimit        = round(angle);
             mStraight.ActionAtTachoLimit = 'Brake';
             mStraight.SendToNXT();
+            mStraight.WaitFor();
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -163,7 +169,11 @@ classdef realRobot < handle
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %% Function to generateScanConfig - can leave blank
-        function generateScanConfig(robot, numScans)
+        function scanConfig = generateScanConfig(robot, samples)
+            startAngle =0;
+            endAngle = 2*pi;
+            i= startAngle:abs(startAngle-endAngle)/samples:startAngle+endAngle- abs(startAngle-endAngle)/samples;
+            scanConfig =  cat(1,cos(i), sin(i))'*30;
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
