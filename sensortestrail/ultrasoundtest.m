@@ -62,7 +62,17 @@ data = zeros(1, n);
 allX = (1:count+1)';
 
 %% Measuring...
+
+%webcam setup
+camList = webcamlist;
+cam = webcam(1);
+k=0;
 for i = 1 : count
+    %grabs image of tape measure
+    img = snapshot(cam);
+    image_name= strcat('test', int2str(k), '.bmp');
+    imwrite(img,image_name);
+    k=k+1;
     USMakeSnapshot(portUS)
     pause(0.05);            % wait for the sound to travel
     echos = USGetSnapshotResults(portUS);
